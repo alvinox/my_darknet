@@ -1,0 +1,5 @@
+#./darknet detect cfg/yolov3.cfg weights/yolov3.weights data/dog.jpg
+./darknet detect cfg/yolov3-tiny.cfg weights/yolov3-tiny.weights data/dog.jpg
+#./darknet imtest data/eagle.jpg
+#./darknet detector demo cfg/coco.data cfg/yolov3-tiny.cfg weights/yolov3-tiny.weights
+#./darknet detector train cfg/voc.data cfg/yolov3-voc.cfg weights/darknet53.conv.74
