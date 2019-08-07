@@ -1,4 +1,5 @@
 #include "darknet.h"
+#include "parser.h"
 
 #include <time.h>
 #include <stdlib.h>
@@ -76,6 +77,28 @@ void average(int argc, char *argv[])
         }
     }
     save_weights(sum, outfile);
+}
+
+void split_weights(int argc, char *argv[]) {
+    char *cfgfile = argv[2];
+    gpu_index = -1;
+    network *net = parse_network_cfg(cfgfile);
+
+    char *weightfile = argv[3];
+    load_weights(net, weightfile);
+
+    char *sDir = (char *)"splited_weights";
+    char cmd[512] = {0};
+    sprintf(cmd, (char *)"mkdir -p %s", sDir);
+    system(cmd);
+    printf("split weights in dir: %s\n", sDir);
+
+    for(int i = 0; i < net->n; ++i) {
+        layer l = net->layers[i];
+        if(l.type == CONVOLUTIONAL) {
+           save_convolutional_weights_split(&l, sDir);
+        }
+    }
 }
 
 long numops(network *net)
@@ -421,6 +444,8 @@ int main(int argc, char **argv)
 
     if (0 == strcmp(argv[1], "average")){
         average(argc, argv);
+    } else if (0 == strcmp(argv[1], "split_weights")){
+        split_weights(argc, argv);
     } else if (0 == strcmp(argv[1], "yolo")){
         run_yolo(argc, argv);
     } else if (0 == strcmp(argv[1], "super")){

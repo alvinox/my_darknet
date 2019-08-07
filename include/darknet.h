@@ -113,6 +113,7 @@ struct layer;
 typedef struct layer layer;
 
 struct layer{
+    int layer_id;
     LAYER_TYPE type;
     ACTIVATION activation;
     COST_TYPE cost_type;

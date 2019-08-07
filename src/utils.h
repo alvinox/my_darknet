@@ -49,5 +49,16 @@ float sec(clock_t clocks);
 void print_statistics(float *a, int n);
 int int_index(int *a, int val, int n);
 
+typedef struct {
+    int rank;
+    int batch;
+    int channels;
+    int height;
+    int width;
+} Tensor;
+void save_layer_feature_map(layer* l, const char* in_name);
+void save_feature_map(const char* name, Tensor t, float* data);
+
+
 #endif
 

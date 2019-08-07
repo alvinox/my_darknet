@@ -15,6 +15,7 @@ void pull_network_output(network *net);
 
 void compare_networks(network *n1, network *n2, data d);
 char *get_layer_string(LAYER_TYPE a);
+void get_layer_id_str(layer* l, char* name);
 
 network *make_network(int n);
 

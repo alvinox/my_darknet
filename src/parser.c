@@ -764,6 +764,7 @@ network *parse_network_cfg(char *filename)
     size_t workspace_size = 0;
     n = n->next;
     int count = 0;
+    int layer_id = 1; // network layer's id is 0
     free_section(s);
     fprintf(stderr, "layer     filters    size              input                output\n");
     while(n){
@@ -847,12 +848,14 @@ network *parse_network_cfg(char *filename)
         l.dontloadscales = option_find_int_quiet(options, "dontloadscales", 0);
         l.learning_rate_scale = option_find_float_quiet(options, "learning_rate", 1);
         l.smooth = option_find_float_quiet(options, "smooth", 0);
+        l.layer_id = layer_id;
         option_unused(options);
         net->layers[count] = l;
         if (l.workspace_size > workspace_size) workspace_size = l.workspace_size;
         free_section(s);
         n = n->next;
         ++count;
+        ++layer_id;
         if(n){
             params.h = l.out_h;
             params.w = l.out_w;
@@ -974,6 +977,51 @@ void save_convolutional_weights(layer l, FILE *fp)
         fwrite(l.rolling_variance, sizeof(float), l.n, fp);
     }
     fwrite(l.weights, sizeof(float), num, fp);
+}
+
+void save_convolutional_weights_split(layer* l, const char* sDir) {
+    char name[128];
+    char filename[1024] = {0};
+    int num = l->c/l->groups * l->n * l->size * l->size;
+    int filters = l->n;
+
+    // split batch normal
+    if (l->batch_normalize) {
+        strcpy(name, "batch_normal");
+        sprintf(filename, (char *)"%s/%d_%s.wt", sDir, l->layer_id, name);
+        printf("++ Saving weights: %s\n", filename);
+
+        FILE *fp = fopen(filename, "wb");
+        if (fp == NULL) {
+            printf("Error. can't open or access '%s'.", filename);
+            return;
+        }
+        
+        fwrite(l->biases, sizeof(float), filters, fp);
+        fwrite(l->scales, sizeof(float), filters, fp);
+        fwrite(l->rolling_mean, sizeof(float), filters, fp);
+        fwrite(l->rolling_variance, sizeof(float), filters, fp);
+
+        fclose(fp);
+    }
+
+    // split convolution
+    {  
+        get_layer_id_str(l, name);
+        sprintf(filename, (char *)"%s/%s.wt", sDir, name);
+        printf("++ Saving weights: %s\n", filename);
+
+        FILE *fp = fopen(filename, "wb");
+        if (fp == NULL) {
+            printf("Error. can't open or access '%s'.", filename);
+            return;
+        }
+
+        fwrite(l->biases, sizeof(float), filters, fp);
+        fwrite(l->weights, sizeof(float), num, fp);
+
+        fclose(fp);
+    }
 }
 
 void save_batchnorm_weights(layer l, FILE *fp)

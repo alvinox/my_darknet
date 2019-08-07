@@ -10,6 +10,7 @@
 #include <sys/time.h>
 
 #include "utils.h"
+#include "network.h"
 
 
 /*
@@ -724,3 +725,51 @@ float **one_hot_encode(float *a, int n, int k)
     return t;
 }
 
+void save_layer_feature_map(layer* l, const char* in_name) {
+    char name[128]; 
+    if (in_name == NULL) {
+        get_layer_id_str(l, name);
+    } else {
+        sprintf(name, "%d_%s", l->layer_id, in_name);
+    }
+    Tensor t = {4, l->batch, l->out_c, l->out_h, l->out_w};
+    save_feature_map(name, t, l->output);
+}
+
+void save_feature_map(const char* name, Tensor t, float* data) {
+    if (name == NULL || strlen(name) == 0) return;
+    if (data == NULL) return;
+
+
+//    char *sLayer = get_layer_string(l->type);
+
+    char *sDir = (char *)"feature_map";
+    char cmd[512] = {0};
+    sprintf(cmd, (char *)"mkdir -p %s", sDir);
+    system(cmd);    
+
+    char filename[1024] = {0};
+    sprintf(filename, (char *)"%s/%s.fm", sDir, name);
+    printf("++ Saving feature map: %s\n", filename);
+
+    FILE *fp = fopen(filename, "wb");
+    if (fp == NULL) {
+        printf("Error. can't open or access '%s'.", filename);
+        return;
+    }
+
+    int size = t.batch * t.channels * t.height * t.width;
+    printf("{batch=%d, c=%d, h=%d, w=%d}\n",
+        t.batch, t.channels, t.height, t.width);
+
+    fwrite(&t.rank,    sizeof(int), 1, fp);
+    fwrite(&size,      sizeof(int), 1, fp);
+    fwrite(&t.batch,   sizeof(int), 1, fp);
+    fwrite(&t.channels,sizeof(int), 1, fp);
+    fwrite(&t.height,  sizeof(int), 1, fp);
+    fwrite(&t.width,   sizeof(int), 1, fp);
+
+    fwrite(data, sizeof(float), size, fp);
+
+    fclose(fp);
+}

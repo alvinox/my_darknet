@@ -31,6 +31,7 @@
 #include "shortcut_layer.h"
 #include "parser.h"
 #include "data.h"
+#include "utils.h"
 
 load_args get_base_args(network *net)
 {
@@ -174,6 +175,13 @@ char *get_layer_string(LAYER_TYPE a)
     return "none";
 }
 
+void get_layer_id_str(layer* l, char* name) {
+    char *sLayer = get_layer_string(l->type);
+    char buf[128];
+    sprintf(buf, "%d_%s", l->layer_id, sLayer);
+    strcpy(name, buf);
+}
+
 network *make_network(int n)
 {
     network *net = calloc(1, sizeof(network));
@@ -196,12 +204,21 @@ void forward_network(network *netp)
     network net = *netp;
     int i;
     for(i = 0; i < net.n; ++i){
+        if (i == 0) {
+            Tensor t = {4, net.batch, net.c, net.h, net.w};
+            save_feature_map("0_input_resized", t, net.input);
+        }
+
         net.index = i;
         layer l = net.layers[i];
         if(l.delta){
             fill_cpu(l.outputs * l.batch, 0, l.delta, 1);
         }
         l.forward(l, net);
+        if (l.type != CONVOLUTIONAL) {
+            // feature map of convolutional is saved in forward
+            save_layer_feature_map(&l, NULL);
+        }
         net.input = l.output;
         if(l.truth) {
             net.truth = l.output;

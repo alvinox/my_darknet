@@ -8,3 +8,6 @@ ehthumbs.db
 Icon?
 Thumbs.db
 *.swp
+
+feature_map/*
+splited_weights/*
