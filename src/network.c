@@ -787,12 +787,20 @@ void forward_network_gpu(network *netp)
 
     int i;
     for(i = 0; i < net.n; ++i){
+        if (i == 0) {
+            Tensor t = {4, net.batch, net.c, net.h, net.w};
+            save_feature_map_gpu("0_input_resized", t, net.input_gpu);
+        }        
         net.index = i;
         layer l = net.layers[i];
         if(l.delta_gpu){
             fill_gpu(l.outputs * l.batch, 0, l.delta_gpu, 1);
         }
         l.forward_gpu(l, net);
+        if (l.type != CONVOLUTIONAL) {
+            // feature map of convolutional is saved in forward
+            save_layer_feature_map_gpu(&l, NULL);
+        }
         net.input_gpu = l.output_gpu;
         net.input = l.output;
         if(l.truth) {

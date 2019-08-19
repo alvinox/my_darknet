@@ -987,7 +987,7 @@ void save_convolutional_weights_split(layer* l, const char* sDir) {
 
     // split batch normal
     if (l->batch_normalize) {
-        strcpy(name, "batch_normal");
+        strcpy(name, "batch_normalize");
         sprintf(filename, (char *)"%s/%d_%s.wt", sDir, l->layer_id, name);
         printf("++ Saving weights: %s\n", filename);
 

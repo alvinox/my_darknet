@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "darknet.h": "c",
-        "utils.h": "c"
+        "utils.h": "c",
+        "blas.h": "c"
     }
 }

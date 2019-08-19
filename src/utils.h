@@ -58,6 +58,8 @@ typedef struct {
 } Tensor;
 void save_layer_feature_map(layer* l, const char* in_name);
 void save_feature_map(const char* name, Tensor t, float* data);
+void save_layer_feature_map_gpu(layer* l, const char* in_name);
+void save_feature_map_gpu(const char* name, Tensor t, float* data);
 
 
 #endif
