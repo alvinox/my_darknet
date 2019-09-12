@@ -771,6 +771,7 @@ void save_feature_map(const char* name, Tensor t, float* data) {
     fclose(fp);
 }
 
+#ifdef GPU
 void save_layer_feature_map_gpu(layer* l, const char* in_name) {
     char name[128]; 
     if (in_name == NULL) {
@@ -819,3 +820,4 @@ void save_feature_map_gpu(const char* name, Tensor t, float* data_gpu) {
 
     fclose(fp);
 }
+#endif // GPU

@@ -169,9 +169,12 @@ char *get_layer_string(LAYER_TYPE a)
             return "normalization";
         case BATCHNORM:
             return "batchnorm";
+        case UPSAMPLE:
+            return "upsample";
         default:
             break;
     }
+    assert(0 && "unknown layer type.");
     return "none";
 }
 

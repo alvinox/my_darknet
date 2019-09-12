@@ -1,4 +1,6 @@
 *.o
+libdarknet.a
+libdarknet.so
 darknet
 weights/*
 
@@ -9,5 +11,8 @@ Icon?
 Thumbs.db
 *.swp
 
+
+
 feature_map/*
 splited_weights/*
+weights
