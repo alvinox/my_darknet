@@ -1033,10 +1033,13 @@ data load_data_swag(char **paths, int n, int classes, float jitter)
     return d;
 }
 
-data load_data_detection(int n, char **paths, int m, int w, int h, int boxes, int classes, float jitter, float hue, float saturation, float exposure)
+data load_data_detection(int n, char **paths, int m, int w, int h, int boxes, int classes, float jitter, float hue, float saturation, float exposure, int train_shuffle)
 {
     char **random_paths = get_random_paths(paths, n, m);
     int i;
+    for (i = 0; i < n; ++i) {
+        printf("loading img %s\n", random_paths[i]);
+    }
     data d = {0};
     d.shallow = 0;
 
@@ -1053,8 +1056,10 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int boxes, in
         float dw = jitter * orig.w;
         float dh = jitter * orig.h;
 
-        float new_ar = (orig.w + rand_uniform(-dw, dw)) / (orig.h + rand_uniform(-dh, dh));
-        //float scale = rand_uniform(.25, 2);
+        float new_ar = 1;
+        if (train_shuffle) {
+            new_ar = (orig.w + rand_uniform(-dw, dw)) / (orig.h + rand_uniform(-dh, dh));
+        }
         float scale = 1;
 
         float nw, nh;
@@ -1067,14 +1072,23 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int boxes, in
             nh = nw / new_ar;
         }
 
-        float dx = rand_uniform(0, w - nw);
-        float dy = rand_uniform(0, h - nh);
+        float dx = 0;
+        float dy = 0;
+        if (train_shuffle) {
+            dx = rand_uniform(0, w - nw);
+            dy = rand_uniform(0, h - nh);
+        }
 
         place_image(orig, nw, nh, dx, dy, sized);
 
-        random_distort_image(sized, hue, saturation, exposure);
+        if (train_shuffle) {
+           random_distort_image(sized, hue, saturation, exposure);
+        }
 
-        int flip = rand()%2;
+        int flip = 0;
+        if (train_shuffle) {
+            flip = rand()%2;
+        }
         if(flip) flip_image(sized);
         d.X.vals[i] = sized.data;
 
@@ -1114,7 +1128,7 @@ void *load_thread(void *ptr)
     } else if (a.type == REGION_DATA){
         *a.d = load_data_region(a.n, a.paths, a.m, a.w, a.h, a.num_boxes, a.classes, a.jitter, a.hue, a.saturation, a.exposure);
     } else if (a.type == DETECTION_DATA){
-        *a.d = load_data_detection(a.n, a.paths, a.m, a.w, a.h, a.num_boxes, a.classes, a.jitter, a.hue, a.saturation, a.exposure);
+        *a.d = load_data_detection(a.n, a.paths, a.m, a.w, a.h, a.num_boxes, a.classes, a.jitter, a.hue, a.saturation, a.exposure, a.train_shuffle);
     } else if (a.type == SWAG_DATA){
         *a.d = load_data_swag(a.paths, a.n, a.classes, a.jitter);
     } else if (a.type == COMPARE_DATA){

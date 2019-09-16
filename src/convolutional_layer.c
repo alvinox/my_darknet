@@ -473,18 +473,27 @@ void forward_convolutional_layer(convolutional_layer l, network net)
             gemm(0,0,m,n,k,1,a,k,b,n,1,c,n);
         }
     }
-    save_layer_feature_map(&l, NULL);
+
+    if (net.save_feature_map) {
+        save_layer_feature_map(&l, NULL);
+    }
 
     if(l.batch_normalize){
         forward_batchnorm_layer(l, net);
-        save_layer_feature_map(&l, "batch_normalize");
+        if (net.save_feature_map) {
+            save_layer_feature_map(&l, "batch_normalize");
+        }
     } else {
         add_bias(l.output, l.biases, l.batch, l.n, l.out_h*l.out_w);
-        save_layer_feature_map(&l, "add_bias");
+        if (net.save_feature_map) {
+            save_layer_feature_map(&l, "add_bias");
+        }
     }
 
     activate_array(l.output, l.outputs*l.batch, l.activation);
-    save_layer_feature_map(&l, "activate");
+    if (net.save_feature_map) {
+        save_layer_feature_map(&l, "activate");
+    }
     if(l.binary || l.xnor) swap_binary(&l);
 }
 

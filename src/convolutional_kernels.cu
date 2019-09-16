@@ -122,18 +122,26 @@ void forward_convolutional_layer_gpu(convolutional_layer l, network net)
         }
     }
 #endif
-    save_layer_feature_map_gpu(&l, NULL);
+    if (net.save_feature_map) {
+        save_layer_feature_map_gpu(&l, NULL);
+    }
     
     if (l.batch_normalize) {
         forward_batchnorm_layer_gpu(l, net);
-        save_layer_feature_map_gpu(&l, "batch_normalize");
+        if (net.save_feature_map) {
+            save_layer_feature_map_gpu(&l, "batch_normalize");
+        }
     } else {
         add_bias_gpu(l.output_gpu, l.biases_gpu, l.batch, l.n, l.out_w*l.out_h);
-        save_layer_feature_map_gpu(&l, "add_bias");
+        if (net.save_feature_map) {
+            save_layer_feature_map_gpu(&l, "add_bias");
+        }
     }
 
     activate_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation);
-    save_layer_feature_map_gpu(&l, "activate");
+    if (net.save_feature_map) {
+        save_layer_feature_map_gpu(&l, "activate");
+    }
     //if(l.dot > 0) dot_error_gpu(l);
     if(l.binary || l.xnor) swap_binary(&l);
 }

@@ -494,6 +494,10 @@ typedef struct network{
     float *output_gpu;
 #endif
 
+// for testing
+    int save_feature_map;
+    int save_init_weights;
+    int train_shuffle;
 } network;
 
 typedef struct {
@@ -576,6 +580,9 @@ typedef struct load_args{
     image *resized;
     data_type type;
     tree *hierarchy;
+
+    // for testing
+    int train_shuffle;
 } load_args;
 
 typedef struct{

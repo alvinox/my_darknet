@@ -208,8 +208,10 @@ void forward_network(network *netp)
     int i;
     for(i = 0; i < net.n; ++i){
         if (i == 0) {
-            Tensor t = {4, net.batch, net.c, net.h, net.w};
-            save_feature_map("0_input_resized", t, net.input);
+            if (net.save_feature_map) {
+                Tensor t = {4, net.batch, net.c, net.h, net.w};
+                save_feature_map("0_input_resized", t, net.input);
+            }
         }
 
         net.index = i;
@@ -220,7 +222,9 @@ void forward_network(network *netp)
         l.forward(l, net);
         if (l.type != CONVOLUTIONAL) {
             // feature map of convolutional is saved in forward
-            save_layer_feature_map(&l, NULL);
+            if (net.save_feature_map) {
+                save_layer_feature_map(&l, NULL);
+            }
         }
         net.input = l.output;
         if(l.truth) {
@@ -802,7 +806,9 @@ void forward_network_gpu(network *netp)
         l.forward_gpu(l, net);
         if (l.type != CONVOLUTIONAL) {
             // feature map of convolutional is saved in forward
-            save_layer_feature_map_gpu(&l, NULL);
+            if (net.save_feature_map) {
+                save_layer_feature_map_gpu(&l, NULL);
+            }
         }
         net.input_gpu = l.output_gpu;
         net.input = l.output;

@@ -30,6 +30,9 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
     srand(time(0));
     network *net = nets[0];
 
+    if (net->save_init_weights)
+        save_weights(net, "yolov3-tiny-coco-init.weights");
+
     int imgs = net->batch * net->subdivisions * ngpus;
     printf("Learning Rate: %g, Momentum: %g, Decay: %g\n", net->learning_rate, net->momentum, net->decay);
     data train, buffer;
@@ -54,32 +57,40 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
     args.d = &buffer;
     args.type = DETECTION_DATA;
     //args.type = INSTANCE_DATA;
-    args.threads = 64;
+    if (net->train_shuffle == 0) {
+        args.threads = 1;
+        args.train_shuffle = 0;
+    } else {
+        args.threads = 64;
+        args.train_shuffle = 1;
+    }
 
     pthread_t load_thread = load_data(args);
     double time;
     int count = 0;
     //while(i*imgs < N*120){
     while(get_current_batch(net) < net->max_batches){
-        if(l.random && count++%10 == 0){
-            printf("Resizing\n");
-            int dim = (rand() % 10 + 10) * 32;
-            if (get_current_batch(net)+200 > net->max_batches) dim = 608;
-            //int dim = (rand() % 4 + 16) * 32;
-            printf("%d\n", dim);
-            args.w = dim;
-            args.h = dim;
+        if (net->train_shuffle != 0) {
+            if(l.random && count++%10 == 0){
+                printf("Resizing\n");
+                int dim = (rand() % 10 + 10) * 32;
+                if (get_current_batch(net)+200 > net->max_batches) dim = 608;
+                //int dim = (rand() % 4 + 16) * 32;
+                printf("%d\n", dim);
+                args.w = dim;
+                args.h = dim;
 
-            pthread_join(load_thread, 0);
-            train = buffer;
-            free_data(train);
-            load_thread = load_data(args);
+                pthread_join(load_thread, 0);
+                train = buffer;
+                free_data(train);
+                load_thread = load_data(args);
 
-            #pragma omp parallel for
-            for(i = 0; i < ngpus; ++i){
-                resize_network(nets[i], dim, dim);
+                #pragma omp parallel for
+                for(i = 0; i < ngpus; ++i){
+                    resize_network(nets[i], dim, dim);
+                }
+                net = nets[0];
             }
-            net = nets[0];
         }
         time=what_time_is_it_now();
         pthread_join(load_thread, 0);
@@ -585,8 +596,11 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
             strtok(input, "\n");
         }
         image im = load_image_color(input,0,0);
-        Tensor t = {4, 1, im.c, im.h, im.w};
-        save_feature_map("0_input", t, im.data);
+        
+        if (net->save_feature_map) {
+            Tensor t = {4, 1, im.c, im.h, im.w};
+            save_feature_map("0_input", t, im.data);
+        }
         
         image sized = letterbox_image(im, net->w, net->h);
         //image sized = resize_image(im, net->w, net->h);
