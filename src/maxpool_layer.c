@@ -115,6 +115,9 @@ void forward_maxpool_layer(const maxpool_layer l, network net)
 
 void backward_maxpool_layer(const maxpool_layer l, network net)
 {
+    size_t epoch = get_current_batch(&net);
+    if (net.save_delta) save_layer_delta(&l, "maxpool_next", epoch);
+
     int i;
     int h = l.out_h;
     int w = l.out_w;
@@ -123,5 +126,6 @@ void backward_maxpool_layer(const maxpool_layer l, network net)
         int index = l.indexes[i];
         net.delta[index] += l.delta[i];
     }
+    if (net.save_delta) save_layer_delta(&l, "maxpool", epoch);
 }
 

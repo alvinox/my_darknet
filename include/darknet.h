@@ -496,6 +496,7 @@ typedef struct network{
 
 // for testing
     int save_feature_map;
+    int save_delta;
     int save_init_weights;
     int train_shuffle;
 } network;

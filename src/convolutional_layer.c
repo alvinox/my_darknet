@@ -474,25 +474,26 @@ void forward_convolutional_layer(convolutional_layer l, network net)
         }
     }
 
+    size_t epoch = get_current_batch(&net);
     if (net.save_feature_map) {
-        save_layer_feature_map(&l, NULL);
+        save_layer_feature_map(&l, NULL, epoch);
     }
 
     if(l.batch_normalize){
         forward_batchnorm_layer(l, net);
         if (net.save_feature_map) {
-            save_layer_feature_map(&l, "batch_normalize");
+            save_layer_feature_map(&l, "batch_normalize", epoch);
         }
     } else {
         add_bias(l.output, l.biases, l.batch, l.n, l.out_h*l.out_w);
         if (net.save_feature_map) {
-            save_layer_feature_map(&l, "add_bias");
+            save_layer_feature_map(&l, "add_bias", epoch);
         }
     }
 
     activate_array(l.output, l.outputs*l.batch, l.activation);
     if (net.save_feature_map) {
-        save_layer_feature_map(&l, "activate");
+        save_layer_feature_map(&l, "activate", epoch);
     }
     if(l.binary || l.xnor) swap_binary(&l);
 }
@@ -504,14 +505,23 @@ void backward_convolutional_layer(convolutional_layer l, network net)
     int n = l.size*l.size*l.c/l.groups;
     int k = l.out_w*l.out_h;
 
+    size_t epoch = get_current_batch(&net);
+
+    if (net.save_delta) save_layer_delta(&l, "activate_next", epoch);
     gradient_array(l.output, l.outputs*l.batch, l.activation, l.delta);
+    if (net.save_delta) save_layer_delta(&l, "activate", epoch);
 
     if(l.batch_normalize){
+        if (net.save_delta) save_layer_delta(&l, "batch_normalize_next", epoch);
         backward_batchnorm_layer(l, net);
+        if (net.save_delta) save_layer_delta(&l, "batch_normalize", epoch);
     } else {
+        if (net.save_delta) save_layer_delta(&l, "add_bias_next", epoch);
         backward_bias(l.bias_updates, l.delta, l.batch, l.n, k);
+        if (net.save_delta) save_layer_delta(&l, "add_bias", epoch);
     }
 
+    if (net.save_delta) save_layer_delta(&l, "convolutional_next", epoch);
     for(i = 0; i < l.batch; ++i){
         for(j = 0; j < l.groups; ++j){
             float *a = l.delta + (i*l.groups + j)*m*k;
@@ -546,6 +556,7 @@ void backward_convolutional_layer(convolutional_layer l, network net)
             }
         }
     }
+    if (net.save_delta) save_layer_delta(&l, NULL, epoch);
 }
 
 void update_convolutional_layer(convolutional_layer l, update_args a)

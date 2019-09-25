@@ -1,6 +1,7 @@
 #include "route_layer.h"
 #include "cuda.h"
 #include "blas.h"
+#include "utils.h"
 
 #include <stdio.h>
 
@@ -88,6 +89,9 @@ void forward_route_layer(const route_layer l, network net)
 
 void backward_route_layer(const route_layer l, network net)
 {
+    size_t epoch = get_current_batch(&net);
+    if (net.save_delta) save_layer_delta(&l, "route_next", epoch);
+
     int i, j;
     int offset = 0;
     for(i = 0; i < l.n; ++i){
@@ -99,11 +103,32 @@ void backward_route_layer(const route_layer l, network net)
         }
         offset += input_size;
     }
+
+    if (net.save_delta) {
+        for (i = 0; i < l.n; ++i){
+            // save delta for each layer
+            int index = l.input_layers[i];
+            layer l = net.layers[index];
+
+            Tensor t = {4, l.batch, l.out_c, l.out_h, l.out_w};
+            size_t epoch = get_current_batch(&net);
+            
+            char name1[128];
+            char name[128];
+            get_layer_id_str(&l, name1);
+            sprintf(name, "%s_routed", name1);
+            save_delta(name, t, l.delta, epoch);
+        }
+        save_layer_delta(&l, "route", epoch);
+    }
 }
 
 #ifdef GPU
 void forward_route_layer_gpu(const route_layer l, network net)
 {
+    size_t epoch = get_current_batch(&net);
+    if (net.save_delta) save_layer_delta_gpu(&l, "route_next", epoch);
+
     int i, j;
     int offset = 0;
     for(i = 0; i < l.n; ++i){
@@ -114,6 +139,24 @@ void forward_route_layer_gpu(const route_layer l, network net)
             copy_gpu(input_size, input + j*input_size, 1, l.output_gpu + offset + j*l.outputs, 1);
         }
         offset += input_size;
+    }
+
+    if (net.save_delta) {
+        for (i = 0; i < l.n; ++i){
+            // save delta for each layer
+            int index = l.input_layers[i];
+            layer l = net.layers[index];
+
+            Tensor t = {4, l.batch, l.out_c, l.out_h, l.out_w};
+            size_t epoch = get_current_batch(&net);
+            
+            char name1[128];
+            char name[128];
+            get_layer_id_str(&l, name1);
+            sprintf(name, "%s_routed", name1);
+            save_delta_gpu(name, t, l.delta_gpu, epoch);
+        }
+        save_layer_delta_gpu(&l, "route", epoch);
     }
 }
 

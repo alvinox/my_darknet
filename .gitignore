@@ -2,7 +2,7 @@
 libdarknet.a
 libdarknet.so
 darknet
-weights/*
+weights*
 
 # OS Generated #
 .DS_Store*
@@ -13,6 +13,7 @@ Thumbs.db
 
 
 
-feature_map/*
-splited_weights/*
-weights
+feature_map*
+splited_weights*
+delta*
+*.weights

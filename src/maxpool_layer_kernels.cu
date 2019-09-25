@@ -98,9 +98,12 @@ extern "C" void forward_maxpool_layer_gpu(maxpool_layer layer, network net)
 
 extern "C" void backward_maxpool_layer_gpu(maxpool_layer layer, network net)
 {
+    size_t epoch = get_current_batch(&net);
     size_t n = layer.h*layer.w*layer.c*layer.batch;
 
+    if (net.save_delta) save_layer_delta_gpu(&layer, "maxpool_next", epoch);
     backward_maxpool_layer_kernel<<<cuda_gridsize(n), BLOCK>>>(n, layer.h, layer.w, layer.c, layer.stride, layer.size, layer.pad, layer.delta_gpu, net.delta_gpu, layer.indexes_gpu);
     check_error(cudaPeekAtLastError());
+    if (net.save_delta) save_layer_delta_gpu(&layer, "maxpool", epoch);
 }
 

@@ -733,6 +733,7 @@ void parse_net_options(list *options, network *net)
     net->max_batches = option_find_int(options, "max_batches", 0);
 
     net->save_feature_map = option_find_int(options, "save_feature_map", 0);
+    net->save_delta = option_find_int(options, "save_delta", 0);
     net->save_init_weights = option_find_int(options, "save_init_weights", 0);
     net->train_shuffle = option_find_int(options, "train_shuffle", 1);
 }

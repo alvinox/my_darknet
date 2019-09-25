@@ -49,6 +49,8 @@ float sec(clock_t clocks);
 void print_statistics(float *a, int n);
 int int_index(int *a, int val, int n);
 
+int nz_items_count(float* data, int n);
+
 typedef struct {
     int rank;
     int batch;
@@ -56,11 +58,17 @@ typedef struct {
     int height;
     int width;
 } Tensor;
-void save_layer_feature_map(layer* l, const char* in_name);
-void save_feature_map(const char* name, Tensor t, float* data);
-void save_layer_feature_map_gpu(layer* l, const char* in_name);
-void save_feature_map_gpu(const char* name, Tensor t, float* data);
+// save forward feature map
+void save_layer_feature_map(layer* l, const char* in_name, size_t epoch);
+void save_feature_map(const char* name, Tensor t, float* data, size_t epoch);
+void save_layer_feature_map_gpu(layer* l, const char* in_name, size_t epoch);
+void save_feature_map_gpu(const char* name, Tensor t, float* data, size_t epoch);
 
+// save backward delta
+void save_layer_delta(layer* l, const char* in_name, size_t epoch);
+void save_delta(const char* name, Tensor t, float* data, size_t epoch);
+void save_layer_delta_gpu(layer* l, const char* in_name, size_t epoch);
+void save_delta_gpu(const char* name, Tensor t, float* data_gpu, size_t epoch);
 
 #endif
 

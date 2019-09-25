@@ -122,25 +122,26 @@ void forward_convolutional_layer_gpu(convolutional_layer l, network net)
         }
     }
 #endif
+    size_t epoch = get_current_batch(&net);
     if (net.save_feature_map) {
-        save_layer_feature_map_gpu(&l, NULL);
+        save_layer_feature_map_gpu(&l, NULL, epoch);
     }
     
     if (l.batch_normalize) {
         forward_batchnorm_layer_gpu(l, net);
         if (net.save_feature_map) {
-            save_layer_feature_map_gpu(&l, "batch_normalize");
+            save_layer_feature_map_gpu(&l, "batch_normalize", epoch);
         }
     } else {
         add_bias_gpu(l.output_gpu, l.biases_gpu, l.batch, l.n, l.out_w*l.out_h);
         if (net.save_feature_map) {
-            save_layer_feature_map_gpu(&l, "add_bias");
+            save_layer_feature_map_gpu(&l, "add_bias", epoch);
         }
     }
 
     activate_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation);
     if (net.save_feature_map) {
-        save_layer_feature_map_gpu(&l, "activate");
+        save_layer_feature_map_gpu(&l, "activate", epoch);
     }
     //if(l.dot > 0) dot_error_gpu(l);
     if(l.binary || l.xnor) swap_binary(&l);
@@ -193,19 +194,28 @@ void backward_convolutional_layer_gpu(convolutional_layer l, network net)
     if(l.smooth){
         smooth_layer(l, 5, l.smooth);
     }
+    size_t epoch = get_current_batch(&net);
+
+    if (net.save_delta) save_layer_delta_gpu(&l, "activate_next", epoch);
     //constrain_gpu(l.outputs*l.batch, 1, l.delta_gpu, 1);
     gradient_array_gpu(l.output_gpu, l.outputs*l.batch, l.activation, l.delta_gpu);
+    if (net.save_delta) save_layer_delta_gpu(&l, "activate", epoch);
 
 
     if(l.batch_normalize){
+        if (net.save_delta) save_layer_delta_gpu(&l, "batch_normalize_next", epoch);
         backward_batchnorm_layer_gpu(l, net);
+        if (net.save_delta) save_layer_delta_gpu(&l, "batch_normalize", epoch);
     } else {
+        if (net.save_delta) save_layer_delta_gpu(&l, "add_bias_next", epoch);
         backward_bias_gpu(l.bias_updates_gpu, l.delta_gpu, l.batch, l.n, l.out_w*l.out_h);
+        if (net.save_delta) save_layer_delta_gpu(&l, "add_bias", epoch);
     }
     float *original_input = net.input_gpu;
 
     if(l.xnor) net.input_gpu = l.binary_input_gpu;
 #ifdef CUDNN
+    if (net.save_delta) save_layer_delta_gpu(&l, "convolutional_next", epoch);
     float one = 1;
     cudnnConvolutionBackwardFilter(cudnn_handle(),
             &one,
@@ -239,6 +249,7 @@ void backward_convolutional_layer_gpu(convolutional_layer l, network net)
         if(l.binary || l.xnor) swap_binary(&l);
         if(l.xnor) gradient_array_gpu(original_input, l.batch*l.c*l.h*l.w, HARDTAN, net.delta_gpu);
     }
+    if (net.save_delta) save_layer_delta_gpu(&l, NULL, epoch);
 
 #else
     int m = l.n/l.groups;

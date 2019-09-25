@@ -241,7 +241,10 @@ void forward_yolo_layer(const layer l, network net)
 
 void backward_yolo_layer(const layer l, network net)
 {
-   axpy_cpu(l.batch*l.inputs, 1, l.delta, 1, net.delta, 1);
+    size_t epoch = get_current_batch(&net);
+    if (net.save_delta) save_layer_delta(&l, "yolo_next", epoch);
+    axpy_cpu(l.batch*l.inputs, 1, l.delta, 1, net.delta, 1);
+    if (net.save_delta) save_layer_delta(&l, "yolo", epoch);
 }
 
 void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth, int relative)

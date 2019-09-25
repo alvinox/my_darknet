@@ -39,6 +39,19 @@ char **get_random_paths_indexes(char **paths, int n, int m, int *indexes)
 }
 */
 
+char **get_nonrandom_paths(char **paths, int start, int n, int m) {
+    char **random_paths = calloc(n, sizeof(char*));
+    int i;
+    pthread_mutex_lock(&mutex);
+    for(i = 0; i < n; ++i){
+        int index = start + i;
+        if (index >= m) index -= m;
+        random_paths[i] = paths[index];
+    }    
+    pthread_mutex_unlock(&mutex);
+    return random_paths;
+}
+
 char **get_random_paths(char **paths, int n, int m)
 {
     char **random_paths = calloc(n, sizeof(char*));
@@ -1035,7 +1048,15 @@ data load_data_swag(char **paths, int n, int classes, float jitter)
 
 data load_data_detection(int n, char **paths, int m, int w, int h, int boxes, int classes, float jitter, float hue, float saturation, float exposure, int train_shuffle)
 {
-    char **random_paths = get_random_paths(paths, n, m);
+    char **random_paths = NULL;
+    if (train_shuffle) {
+        random_paths = get_random_paths(paths, n, m);
+    } else {
+        static int start = 0;
+        if (start >= m) start = 0;
+        random_paths = get_nonrandom_paths(paths, start, n, m);
+        start += n;
+    }
     int i;
     for (i = 0; i < n; ++i) {
         printf("loading img %s\n", random_paths[i]);

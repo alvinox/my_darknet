@@ -725,7 +725,16 @@ float **one_hot_encode(float *a, int n, int k)
     return t;
 }
 
-void save_layer_feature_map(layer* l, const char* in_name) {
+int nz_items_count(float* data, int n) {
+    int count = 0;
+    for (int i = 0; i < n; ++i) {
+        if (data[i] < -0.00001 || data[i] > 0.00001)
+            count++;
+    }
+    return count;
+}
+
+void save_layer_feature_map(layer* l, const char* in_name, size_t epoch) {
     char name[128]; 
     if (in_name == NULL) {
         get_layer_id_str(l, name);
@@ -733,17 +742,18 @@ void save_layer_feature_map(layer* l, const char* in_name) {
         sprintf(name, "%d_%s", l->layer_id, in_name);
     }
     Tensor t = {4, l->batch, l->out_c, l->out_h, l->out_w};
-    save_feature_map(name, t, l->output);
+    save_feature_map(name, t, l->output, epoch);
 }
 
-void save_feature_map(const char* name, Tensor t, float* data) {
+void save_feature_map(const char* name, Tensor t, float* data, size_t epoch) {
     if (name == NULL || strlen(name) == 0) return;
     if (data == NULL) return;
 
-    char *sDir = (char *)"feature_map";
+    char sDir[512] = {0};
+    sprintf(sDir, (char*)"feature_map_epoch%u", epoch);
     char cmd[512] = {0};
     sprintf(cmd, (char *)"mkdir -p %s", sDir);
-    system(cmd);    
+    system(cmd);
 
     char filename[1024] = {0};
     sprintf(filename, (char *)"%s/%s.fm", sDir, name);
@@ -772,7 +782,7 @@ void save_feature_map(const char* name, Tensor t, float* data) {
 }
 
 #ifdef GPU
-void save_layer_feature_map_gpu(layer* l, const char* in_name) {
+void save_layer_feature_map_gpu(layer* l, const char* in_name, size_t epoch) {
     char name[128]; 
     if (in_name == NULL) {
         get_layer_id_str(l, name);
@@ -780,14 +790,15 @@ void save_layer_feature_map_gpu(layer* l, const char* in_name) {
         sprintf(name, "%d_%s", l->layer_id, in_name);
     }
     Tensor t = {4, l->batch, l->out_c, l->out_h, l->out_w};
-    save_feature_map_gpu(name, t, l->output_gpu);
+    save_feature_map_gpu(name, t, l->output_gpu, epoch);
 }
 
-void save_feature_map_gpu(const char* name, Tensor t, float* data_gpu) {
+void save_feature_map_gpu(const char* name, Tensor t, float* data_gpu, size_t epoch) {
     if (name == NULL || strlen(name) == 0) return;
     if (data_gpu == NULL) return;
 
-    char *sDir = (char *)"feature_map";
+    char sDir[512] = {0};
+    sprintf(sDir, (char*)"feature_map_epoch%u", epoch);
     char cmd[512] = {0};
     sprintf(cmd, (char *)"mkdir -p %s", sDir);
     system(cmd);    
@@ -819,5 +830,102 @@ void save_feature_map_gpu(const char* name, Tensor t, float* data_gpu) {
     free(data_cpu);
 
     fclose(fp);
+}
+#endif // GPU
+
+void save_layer_delta(layer* l, const char* in_name, size_t epoch) {
+    char name[128];
+    if (in_name == NULL) {
+        get_layer_id_str(l, name);
+    } else {
+        sprintf(name, "%d_%s", l->layer_id, in_name);
+    }
+    Tensor t = {4, l->batch, l->out_c, l->out_h, l->out_w};
+    save_delta(name, t, l->delta, epoch);
+}
+
+void save_delta(const char* name, Tensor t, float* data, size_t epoch) {
+    if (name == NULL || strlen(name) == 0) return;
+    if (data == NULL) return;
+
+    char sDir[512] = {0};
+    sprintf(sDir, (char*)"delta_epoch%u", epoch);
+    char cmd[512] = {0};
+    sprintf(cmd, (char *)"mkdir -p %s", sDir);
+    system(cmd);
+
+    char filename[1024] = {0};
+    sprintf(filename, (char *)"%s/%s.delta", sDir, name);
+    printf("++ Saving delta: %s\n", filename);
+
+    FILE *fp = fopen(filename, "wb");
+    if (fp == NULL) {
+        printf("Error. can't open or access '%s'.", filename);
+        return;
+    }
+
+    int size = t.batch * t.channels * t.height * t.width;
+    printf("{batch=%d, c=%d, h=%d, w=%d}\n",
+        t.batch, t.channels, t.height, t.width);
+
+    fwrite(&t.rank,    sizeof(int), 1, fp);
+    fwrite(&size,      sizeof(int), 1, fp);
+    fwrite(&t.batch,   sizeof(int), 1, fp);
+    fwrite(&t.channels,sizeof(int), 1, fp);
+    fwrite(&t.height,  sizeof(int), 1, fp);
+    fwrite(&t.width,   sizeof(int), 1, fp);
+
+    fwrite(data, sizeof(float), size, fp);
+
+    fclose(fp);        
+}
+
+#ifdef GPU
+void save_layer_delta_gpu(layer* l, const char* in_name, size_t epoch) {
+    char name[128];
+    if (in_name == NULL) {
+        get_layer_id_str(l, name);
+    } else {
+        sprintf(name, "%d_%s", l->layer_id, in_name);
+    }
+    Tensor t = {4, l->batch, l->out_c, l->out_h, l->out_w};
+    save_delta_gpu(name, t, l->delta_gpu, epoch);
+}
+void save_delta_gpu(const char* name, Tensor t, float* data_gpu, size_t epoch) {
+    if (name == NULL || strlen(name) == 0) return;
+    if (data_gpu == NULL) return;
+
+    char sDir[512] = {0};
+    sprintf(sDir, (char*)"delta_epoch%u", epoch);
+    char cmd[512] = {0};
+    sprintf(cmd, (char *)"mkdir -p %s", sDir);
+    system(cmd);
+
+    char filename[1024] = {0};
+    sprintf(filename, (char *)"%s/%s.delta", sDir, name);
+    printf("++ Saving delta: %s\n", filename);
+
+    FILE *fp = fopen(filename, "wb");
+    if (fp == NULL) {
+        printf("Error. can't open or access '%s'.", filename);
+        return;
+    }
+
+    int size = t.batch * t.channels * t.height * t.width;
+    printf("{batch=%d, c=%d, h=%d, w=%d}\n",
+        t.batch, t.channels, t.height, t.width);
+
+    fwrite(&t.rank,    sizeof(int), 1, fp);
+    fwrite(&size,      sizeof(int), 1, fp);
+    fwrite(&t.batch,   sizeof(int), 1, fp);
+    fwrite(&t.channels,sizeof(int), 1, fp);
+    fwrite(&t.height,  sizeof(int), 1, fp);
+    fwrite(&t.width,   sizeof(int), 1, fp);
+    
+    float* data_cpu = (float*)calloc(size, sizeof(float));
+    cuda_pull_array(data_gpu, data_cpu, size);
+    fwrite(data_cpu, sizeof(float), size, fp);
+
+    fclose(fp); 
 }
 #endif // GPU

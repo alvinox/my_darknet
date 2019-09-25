@@ -63,6 +63,7 @@ network *load_network(char *cfg, char *weights, int clear)
 
 size_t get_current_batch(network *net)
 {
+    if (!net->train) return 1;
     size_t batch_num = (*net->seen)/(net->batch*net->subdivisions);
     return batch_num;
 }
@@ -93,7 +94,9 @@ float get_current_rate(network *net)
     size_t batch_num = get_current_batch(net);
     int i;
     float rate;
-    if (batch_num < net->burn_in) return net->learning_rate * pow((float)batch_num / net->burn_in, net->power);
+    if (batch_num < net->burn_in) {
+        return net->learning_rate * pow((float)batch_num / net->burn_in, net->power);
+    }
     switch (net->policy) {
         case CONSTANT:
             return net->learning_rate;
@@ -198,6 +201,7 @@ network *make_network(int n)
 
 void forward_network(network *netp)
 {
+    size_t epoch = get_current_batch(netp);
 #ifdef GPU
     if(netp->gpu_index >= 0){
         forward_network_gpu(netp);   
@@ -210,7 +214,7 @@ void forward_network(network *netp)
         if (i == 0) {
             if (net.save_feature_map) {
                 Tensor t = {4, net.batch, net.c, net.h, net.w};
-                save_feature_map("0_input_resized", t, net.input);
+                save_feature_map("0_input_resized", t, net.input, epoch);
             }
         }
 
@@ -223,7 +227,7 @@ void forward_network(network *netp)
         if (l.type != CONVOLUTIONAL) {
             // feature map of convolutional is saved in forward
             if (net.save_feature_map) {
-                save_layer_feature_map(&l, NULL);
+                save_layer_feature_map(&l, NULL, epoch);
             }
         }
         net.input = l.output;
@@ -300,6 +304,10 @@ void backward_network(network *netp)
         if(l.stopbackward) break;
         if(i == 0){
             net = orig;
+            
+            // save net.delta for testing. dpwang 20190924
+            size_t size = net.batch * net.c * net.h * net.w;
+            net.delta = calloc(size, sizeof(float));
         }else{
             layer prev = net.layers[i-1];
             net.input = prev.output;
@@ -307,6 +315,14 @@ void backward_network(network *netp)
         }
         net.index = i;
         l.backward(l, net);
+
+        if (net.save_delta) {
+            if (i == 0) {
+                Tensor t = {4, net.batch, net.c, net.h, net.w};
+                size_t epoch = get_current_batch(&net);
+                save_delta("0_input_resized_next", t, net.delta, epoch);
+            }
+        }
     }
 }
 
@@ -317,7 +333,8 @@ float train_network_datum(network *net)
     forward_network(net);
     backward_network(net);
     float error = *net->cost;
-    if(((*net->seen)/net->batch)%net->subdivisions == 0) update_network(net);
+    if(((*net->seen)/net->batch)%net->subdivisions == 0)
+        update_network(net);
     return error;
 }
 
@@ -785,6 +802,8 @@ float *network_output(network *net)
 
 void forward_network_gpu(network *netp)
 {
+    size_t epoch = get_current_batch(netp);
+
     network net = *netp;
     cuda_set_device(net.gpu_index);
     cuda_push_array(net.input_gpu, net.input, net.inputs*net.batch);
@@ -795,8 +814,10 @@ void forward_network_gpu(network *netp)
     int i;
     for(i = 0; i < net.n; ++i){
         if (i == 0) {
-            Tensor t = {4, net.batch, net.c, net.h, net.w};
-            save_feature_map_gpu("0_input_resized", t, net.input_gpu);
+            if (net.save_feature_map) {
+                Tensor t = {4, net.batch, net.c, net.h, net.w};
+                save_feature_map_gpu("0_input_resized", t, net.input_gpu, epoch);
+            }
         }        
         net.index = i;
         layer l = net.layers[i];
@@ -807,7 +828,7 @@ void forward_network_gpu(network *netp)
         if (l.type != CONVOLUTIONAL) {
             // feature map of convolutional is saved in forward
             if (net.save_feature_map) {
-                save_layer_feature_map_gpu(&l, NULL);
+                save_layer_feature_map_gpu(&l, NULL, epoch);
             }
         }
         net.input_gpu = l.output_gpu;
@@ -841,6 +862,13 @@ void backward_network_gpu(network *netp)
         }
         net.index = i;
         l.backward_gpu(l, net);
+        if (net.save_delta) {
+            if (i == 0) {
+                Tensor t = {4, net.batch, net.c, net.h, net.w};
+                size_t epoch = get_current_batch(&net);
+                save_delta_gpu("0_input_resized_next", t, net.delta_gpu, epoch);
+            }
+        }
     }
 }
 

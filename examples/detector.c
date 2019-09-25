@@ -599,7 +599,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         
         if (net->save_feature_map) {
             Tensor t = {4, 1, im.c, im.h, im.w};
-            save_feature_map("0_input", t, im.data);
+            save_feature_map("0_input", t, im.data, 1);
         }
         
         image sized = letterbox_image(im, net->w, net->h);
